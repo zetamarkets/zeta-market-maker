@@ -1,0 +1,65 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+      "network": {"type": "string", "enum": ["devnet", "mainnet"]},
+      "endpoint": {"type": "string"},
+      "programId": {"type": "string"},
+      "mmExchange": {"type": "string"},
+      "positionFetchIntervalMs": {"type": "integer"},
+      "markPriceStaleIntervalMs": {"type": "integer"},
+      "rebalanceIntervalMs": {"type": "integer"},
+      "cashDeltaLimit": {"type": "integer", "minimum": 15},
+      "mintAuthority": {"$ref": "#/definitions/Wallet"},
+      "assets": {
+        "type": "object",
+        "properties": {
+          "SOL": {"$ref": "#/definitions/Asset"},
+          "ETH": {"$ref": "#/definitions/Asset"},
+          "BTC": {"$ref": "#/definitions/Asset"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "required": ["network", "endpoint", "programId", "mmExchange", "positionFetchIntervalMs", "markPriceStaleIntervalMs", "rebalanceIntervalMs", "cashDeltaLimit"],
+    "definitions": {
+      "Wallet": {
+        "type": "array",
+        "items": [{"type": "integer"}],
+        "minItems": 64,
+        "maxItems": 64
+      },
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "maxCashDelta": {"type": "number"},
+          "quoteLotSize": {"type": "number"},
+          "widthBps": {"type": "integer"},
+          "requoteBps": {"type": "integer"},
+          "instruments": {
+            "type": "array",
+            "items": [{"$ref": "#/definitions/Instrument"}]
+          }
+        },
+        "required": ["maxCashDelta", "quoteLotSize", "widthBps", "requoteBps", "instruments"]
+      },
+      "Instrument": {
+        "type": "object",
+        "properties": {
+          "marketIndex": {"type": "integer", "enum": [22, 45, 137]},
+          "levels": {"type": "array", "items": [{"$ref": "#/definitions/InstrumentLevel"}]}
+        },
+        "additionalProperties": false,
+        "required": ["marketIndex", "levels"] 
+      },
+      "InstrumentLevel": {
+        "type": "object",
+        "properties": {
+          "priceIncr": {"type": "number"},
+          "quoteCashDelta": {"type": "number"}
+        },
+        "additionalProperties": false,
+        "required": ["priceIncr", "quoteCashDelta"] 
+      }
+    }
+  }
