@@ -1,5 +1,5 @@
 import { assets } from "@zetamarkets/sdk";
-import { Theo, TopLevelMsg, Quote, Venue } from "./types";
+import { Theo, TopLevelMsg, Quote } from "./types";
 import { roundLotSize, calculateFair, calculateSpread } from "./math";
 import { AssetParam, Instrument } from "./configuration";
 import { diffInBps } from "./utils";
@@ -101,12 +101,7 @@ export class State {
     }
   }
 
-  setPositionUpdate(
-    venue: Venue,
-    asset: assets.Asset,
-    marketIndex: number,
-    size: number
-  ) {
+  setPositionUpdate(asset: assets.Asset, marketIndex: number, size: number) {
     this.positionAgg.set(`${asset}-${marketIndex}`, size);
   }
 
@@ -170,9 +165,7 @@ export class State {
 
         let spread = calculateSpread(
           theo.theo,
-          this.assetParams.get(asset).widthBps,
-          baseDelta,
-          this.cashDeltaLimit
+          this.assetParams.get(asset).widthBps
         );
 
         quotes.push({

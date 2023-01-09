@@ -1,6 +1,6 @@
 {
-  "network": "devnet",
-  "endpoint": "https://zeta.devnet.rpcpool.com/kzuQbiYTHUY6xtyvS2y2CvE9",
+  "network": "mainnet",
+  "endpoint": "https://api.mainnet-beta.solana.com",
   "programId": "BG3oRikW8d16YjUEmX3ZxHm9SiJzrGtMhsSR8aCw1Cd7",
   "mmExchange": "bybit",
   "positionFetchIntervalMs": 30000,

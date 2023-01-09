@@ -79,7 +79,7 @@ export class Maker {
       assets.forEach(async (asset) => {
         while (true)
           await this.lock.runExclusive(async () => {
-            await this.monitorHedgeOrderbook(asset);
+            await this.monitorMMOrderbook(asset);
           });
       });
 
@@ -120,7 +120,7 @@ export class Maker {
     await this.trader.shutdown();
   }
 
-  private async monitorHedgeOrderbook(asset: assets.Asset) {
+  private async monitorMMOrderbook(asset: assets.Asset) {
     const market = assetToMarket(asset);
     const orderbook = await this.mmExchange.watchOrderBook(market);
 
@@ -228,7 +228,7 @@ replaced with:${toBeRequoted.map((x) => `\n- ${JSON.stringify(x)}`).join("")}`
     await subClient.updateState();
     for (var pos of subClient.marginPositions) {
       if (MARKET_INDEXES.includes(pos.marketIndex)) {
-        this.state.setPositionUpdate("zeta", asset, pos.marketIndex, pos.size);
+        this.state.setPositionUpdate(asset, pos.marketIndex, pos.size);
       }
     }
   }

@@ -23,24 +23,11 @@ export function roundLotSize(size: number, lotSize: number) {
   return Number((Math.floor(size / lotSize) * lotSize).toFixed(3));
 }
 
-export function calculateSpread(
-  price: number,
-  spreadBps: number,
-  totalDeltas: number,
-  maxCashDelta: number
-): Spread {
-  let notionalDelta = totalDeltas * price;
-  let lean =
-    notionalDelta > 0
-      ? Math.max((-notionalDelta / maxCashDelta) * spreadBps, -spreadBps)
-      : Math.min((-notionalDelta / maxCashDelta) * spreadBps, spreadBps);
-  let bidEdge = (price * (-spreadBps + lean)) / constants.BPS_FACTOR;
-  let askEdge = (price * (spreadBps + lean)) / constants.BPS_FACTOR;
-  let bid = price + bidEdge;
-  let ask = price + askEdge;
+export function calculateSpread(price: number, spreadBps: number): Spread {
+  let diff = (price * spreadBps) / constants.BPS_FACTOR;
   return {
-    bid: bid,
-    ask: ask,
+    bid: price - diff,
+    ask: price + diff,
   };
 }
 

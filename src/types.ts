@@ -1,8 +1,6 @@
 import { assets } from "@zetamarkets/sdk";
 import { constants } from "@zetamarkets/sdk";
 
-export type Venue = "zeta" | "hedge";
-
 export enum MarketIndex {
   FUT1 = 22,
   FUT2 = 45,
