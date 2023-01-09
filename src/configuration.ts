@@ -7,7 +7,7 @@ export interface ConfigRaw {
   network: string;
   endpoint: string;
   programId: string;
-  mmExchange: string;
+  markExchange: string;
   positionFetchIntervalMs: number;
   markPriceStaleIntervalMs: number;
   rebalanceIntervalMs: number;
@@ -31,7 +31,7 @@ export interface Config {
   network: Network;
   endpoint: string;
   programId: PublicKey;
-  mmExchange: string;
+  markExchange: string;
   positionFetchIntervalMs: number;
   markPriceStaleIntervalMs: number;
   rebalanceIntervalMs: number;
@@ -60,7 +60,7 @@ export function loadConfig(): Config {
     network: net,
     endpoint: config.endpoint,
     programId,
-    mmExchange: config.mmExchange,
+    markExchange: config.markExchange,
     positionFetchIntervalMs: config.positionFetchIntervalMs,
     markPriceStaleIntervalMs: config.markPriceStaleIntervalMs,
     rebalanceIntervalMs: config.rebalanceIntervalMs,

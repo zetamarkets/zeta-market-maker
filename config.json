@@ -1,8 +1,8 @@
 {
   "network": "devnet",
-  "endpoint": "https://zeta.devnet.rpcpool.com/kzuQbiYTHUY6xtyvS2y2CvE9",
+  "endpoint": "https://api.devnet.solana.com",
   "programId": "BG3oRikW8d16YjUEmX3ZxHm9SiJzrGtMhsSR8aCw1Cd7",
-  "mmExchange": "bybit",
+  "markExchange": "bybit",
   "positionFetchIntervalMs": 30000,
   "markPriceStaleIntervalMs": 30000,
   "rebalanceIntervalMs": 10000,

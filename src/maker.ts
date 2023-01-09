@@ -31,7 +31,7 @@ export class Maker {
     this.config = config;
     this.assets = Array.from(config.assets.keys());
     this.state = new State(config.assets);
-    this.markExchange = new ccxt.pro[config.mmExchange]();
+    this.markExchange = new ccxt.pro[config.markExchange]();
   }
 
   async initialize() {
