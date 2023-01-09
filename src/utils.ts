@@ -7,8 +7,7 @@ import {
   instructions,
 } from "@zetamarkets/sdk";
 import { PublicKey, Transaction } from "@solana/web3.js";
-import { BPS_FACTOR, MARKET_INDEXES } from "./constants";
-import { log } from "./log";
+import { MARKET_INDEXES } from "./constants";
 
 export async function initializeClientState(
   zetaClient: Client,
@@ -18,7 +17,7 @@ export async function initializeClientState(
     let sub = zetaClient.getSubClient(a);
 
     if (sub.marginAccount === null) {
-      log.info(`User has no margin account, creating`);
+      console.log(`User has no margin account, creating`);
       let tx = new Transaction();
       tx.add(
         instructions.initializeMarginAccountIx(
@@ -32,7 +31,7 @@ export async function initializeClientState(
 
     for (var index of MARKET_INDEXES) {
       if (sub.openOrdersAccounts[index].equals(PublicKey.default)) {
-        log.debug(
+        console.log(
           `Creating open orders account for ${assets.assetToName(
             a
           )} : Index: ${index}`
@@ -49,29 +48,15 @@ export async function initializeClientState(
   }
 }
 
-export function schedule(closure: () => void, interval: number): NodeJS.Timer {
-  // call first time
-  (async () => {
-    closure();
-  })();
-  // schedule subsequent
-  return setInterval(closure, interval);
-}
-
-export function diffInBps(x, y: number): number {
-  let diff = Math.abs(x - y);
-  return (diff / y) * BPS_FACTOR;
-}
-
-export function groupBy<T, K>(ts: T[], getKey: (t: T) => K): [K, T[]][] {
-  const grouped = new Map();
-  for (var t of ts) {
-    const key = getKey(t);
-    let forKey = grouped.get(key);
-    if (!forKey) grouped.set(key, [t]);
-    else forKey.push(t);
+export function assetToMarket(asset: assets.Asset): string {
+  switch (asset) {
+    case assets.Asset.BTC:
+      return "BTC/USDT:USDT";
+    case assets.Asset.ETH:
+      return "ETH/USDT:USDT";
+    case assets.Asset.SOL:
+      return "SOL/USDT:USDT";
   }
-  return Array.from(grouped.entries());
 }
 
 // generates ids based on current timestamp.

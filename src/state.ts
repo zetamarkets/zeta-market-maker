@@ -2,26 +2,19 @@ import { assets } from "@zetamarkets/sdk";
 import { Theo, TopLevelMsg, Quote } from "./types";
 import { roundLotSize, calculateFair, calculateSpread } from "./math";
 import { AssetParam, Instrument } from "./configuration";
-import { diffInBps } from "./utils";
-import { log } from "./log";
+import { diffInBps } from "./math";
+import { idCreator } from "./utils";
 
 export class State {
-  private cashDeltaLimit: number;
   private assetParams: Map<assets.Asset, AssetParam>;
   private desiredQuotes: Map<string, Quote[]> = new Map();
   private theos: Map<assets.Asset, Theo> = new Map();
   private funding: Map<assets.Asset, number> = new Map();
-  private positionAgg: Map<string, number> = new Map();
-  private createClientId: () => number;
+  private positions: Map<string, number> = new Map();
+  private createClientId = idCreator();
 
-  constructor(
-    cashDeltaLimit: number,
-    assetParams: Map<assets.Asset, AssetParam>,
-    createClientId: () => number
-  ) {
-    this.cashDeltaLimit = cashDeltaLimit;
+  constructor(assetParams: Map<assets.Asset, AssetParam>) {
     this.assetParams = assetParams;
-    this.createClientId = createClientId;
   }
 
   getCurrentQuotes(asset: assets.Asset): Quote[] {
@@ -49,7 +42,7 @@ export class State {
       timestamp,
     };
     this.theos.set(msg.asset, newTheo);
-    const zetaQuotes = this.calcQuotes(
+    const newQuotes = this.calcQuotes(
       msg.asset,
       this.assetParams.get(msg.asset).instruments,
       newTheo
@@ -58,22 +51,17 @@ export class State {
     // compare with desired quotes bid/ask sizes
     const desiredQuotes = this.desiredQuotes.get(msg.asset);
     if (!desiredQuotes) {
-      log.info(
-        `Will issue new ${msg.asset} zeta quotes ${zetaQuotes
-          .map((x) => `\n- ${JSON.stringify(x)}`)
-          .join("")}`
+      console.log(
+        `Will issue new ${msg.asset} quotes ${JSON.stringify(newQuotes)}`
       );
-      this.desiredQuotes.set(msg.asset, zetaQuotes);
-      return zetaQuotes;
+      this.desiredQuotes.set(msg.asset, newQuotes);
+      return newQuotes;
     } else {
       // if find any diffs with desiredQuotes, add re-issue all quotes for this asset
       const requoteBps = this.assetParams.get(msg.asset).requoteBps;
-      const shouldRequote = zetaQuotes.some((quote) => {
+      const shouldRequote = newQuotes.some((quote) => {
         const desiredQuote = desiredQuotes.find(
-          (x) =>
-            x.asset == quote.asset &&
-            x.marketIndex == quote.marketIndex &&
-            x.level == quote.level
+          (x) => x.asset == quote.asset && x.marketIndex == quote.marketIndex
         );
 
         if (desiredQuote) {
@@ -94,20 +82,17 @@ export class State {
         } else return false;
       });
       if (shouldRequote) {
-        log.info(`Will issue ${msg.asset} zeta quotes`);
-        this.desiredQuotes.set(msg.asset, zetaQuotes);
-        return zetaQuotes;
+        console.log(
+          `Will issue ${msg.asset} quotes ${JSON.stringify(newQuotes)}`
+        );
+        this.desiredQuotes.set(msg.asset, newQuotes);
+        return newQuotes;
       } else return [];
     }
   }
 
   setPositionUpdate(asset: assets.Asset, marketIndex: number, size: number) {
-    this.positionAgg.set(`${asset}-${marketIndex}`, size);
-  }
-
-  setFunding(asset: assets.Asset, funding: number) {
-    // Note only recording for now
-    this.funding.set(asset, funding);
+    this.positions.set(`${asset}-${marketIndex}`, size);
   }
 
   getTheo(asset: assets.Asset): Theo {
@@ -122,66 +107,58 @@ export class State {
   ): Quote[] {
     // get zeta position totals
     if (theo == undefined) {
-      log.info(`No theo for ${asset} yet`);
+      console.log(`No theo for ${asset} yet`);
       return [];
     }
 
     const quotes = [];
     for (var instrument of instruments) {
       let baseDelta =
-        this.positionAgg.get(`${asset}-${instrument.marketIndex}`) ?? 0;
+        this.positions.get(`${asset}-${instrument.marketIndex}`) ?? 0;
 
-      let level = 0;
       let cashDelta = Math.abs(baseDelta * theo.theo);
-      for (var { priceIncr, quoteCashDelta } of instrument.levels) {
-        const params = this.assetParams.get(asset);
-        let bidQuoteCashDelta = Math.min(quoteCashDelta, params.maxCashDelta); // should always be quoteCashDelta
-        let askQuoteCashDelta = bidQuoteCashDelta;
+      const params = this.assetParams.get(asset);
+      let bidQuoteCashDelta = Math.min(
+        instrument.quoteCashDelta,
+        params.maxCashDelta
+      ); // should always be quoteCashDelta
+      let askQuoteCashDelta = bidQuoteCashDelta;
 
-        const maxCashDeltaRemainder = Math.max(
-          0,
-          params.maxCashDelta - cashDelta
-        );
-        if (baseDelta > 0) {
-          bidQuoteCashDelta = Math.min(
-            bidQuoteCashDelta,
-            maxCashDeltaRemainder
-          );
-        } else {
-          askQuoteCashDelta = Math.min(
-            askQuoteCashDelta,
-            maxCashDeltaRemainder
-          );
-        }
-
-        let bidQuoteSize = roundLotSize(
-          bidQuoteCashDelta / theo.theo,
-          params.quoteLotSize
-        );
-        let askQuoteSize = roundLotSize(
-          askQuoteCashDelta / theo.theo,
-          params.quoteLotSize
-        );
-
-        let spread = calculateSpread(
-          theo.theo,
-          this.assetParams.get(asset).widthBps
-        );
-
-        quotes.push({
-          asset,
-          marketIndex: instrument.marketIndex,
-          level,
-          bidPrice: spread.bid * (1 - priceIncr),
-          askPrice: spread.ask * (1 + priceIncr),
-          bidSize: bidQuoteSize,
-          askSize: askQuoteSize,
-          bidClientOrderId: this.createClientId(),
-          askClientOrderId: this.createClientId(),
-        });
-        level++;
-        cashDelta += bidQuoteSize - askQuoteSize;
+      const maxCashDeltaRemainder = Math.max(
+        0,
+        params.maxCashDelta - cashDelta
+      );
+      if (baseDelta > 0) {
+        bidQuoteCashDelta = Math.min(bidQuoteCashDelta, maxCashDeltaRemainder);
+      } else {
+        askQuoteCashDelta = Math.min(askQuoteCashDelta, maxCashDeltaRemainder);
       }
+
+      let bidQuoteSize = roundLotSize(
+        bidQuoteCashDelta / theo.theo,
+        params.quoteLotSize
+      );
+      let askQuoteSize = roundLotSize(
+        askQuoteCashDelta / theo.theo,
+        params.quoteLotSize
+      );
+
+      let spread = calculateSpread(
+        theo.theo,
+        this.assetParams.get(asset).widthBps
+      );
+
+      quotes.push({
+        asset,
+        marketIndex: instrument.marketIndex,
+        bidPrice: spread.bid,
+        askPrice: spread.ask,
+        bidSize: bidQuoteSize,
+        askSize: askQuoteSize,
+        bidClientOrderId: this.createClientId(),
+        askClientOrderId: this.createClientId(),
+      });
+      cashDelta += bidQuoteSize - askQuoteSize;
     }
     return quotes;
   }

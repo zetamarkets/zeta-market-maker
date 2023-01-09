@@ -1,7 +1,6 @@
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { utils, network, Network, assets } from "@zetamarkets/sdk";
 import { MarketIndex } from "./types";
-import ajv from "ajv";
 
 // Before parsing.
 export interface ConfigRaw {
@@ -12,18 +11,12 @@ export interface ConfigRaw {
   positionFetchIntervalMs: number;
   markPriceStaleIntervalMs: number;
   rebalanceIntervalMs: number;
-  blockingIntervalMs: number;
-  cashDeltaLimit: number;
   assets: Object;
-}
-
-export interface SecretsRaw {
-  makerWallet: number[];
 }
 
 export interface Instrument {
   marketIndex: MarketIndex;
-  levels: { priceIncr: number; quoteCashDelta: number }[];
+  quoteCashDelta: number;
 }
 
 export interface AssetParam {
@@ -42,22 +35,17 @@ export interface Config {
   positionFetchIntervalMs: number;
   markPriceStaleIntervalMs: number;
   rebalanceIntervalMs: number;
-  blockingIntervalMs: number;
-  cashDeltaLimit: number;
   assets: Map<assets.Asset, AssetParam>;
-  // from secrets
+  // from secrets file
   makerWallet: Keypair;
 }
 
 export function loadConfig(): Config {
   const config: ConfigRaw = require("../config.json");
-  validateSchema(config, require("../config.schema.json"));
   let makerWallet: Keypair = null;
-  try {
-    makerWallet = Keypair.fromSecretKey(
-      Buffer.from(require("../makerWallet.json"))
-    );
-  } catch (e) {}
+  makerWallet = Keypair.fromSecretKey(
+    Buffer.from(require("../makerWallet.json"))
+  );
   const net: Network = network.toNetwork(config.network);
   const paramAssets: assets.Asset[] = utils.toAssets(
     Object.keys(config.assets)
@@ -76,24 +64,9 @@ export function loadConfig(): Config {
     positionFetchIntervalMs: config.positionFetchIntervalMs,
     markPriceStaleIntervalMs: config.markPriceStaleIntervalMs,
     rebalanceIntervalMs: config.rebalanceIntervalMs,
-    blockingIntervalMs: config.blockingIntervalMs,
-    cashDeltaLimit: config.cashDeltaLimit,
     assets: assetParams,
     // from secrets
     makerWallet,
   };
   return resConfig;
-}
-
-export function validateSchema(config: any, configSchema: any) {
-  const ajvInst = new ajv({ strictTuples: false });
-  configSchema["$schema"] = undefined;
-  const validate = ajvInst.compile(configSchema);
-  const valid = validate(config) as boolean;
-  if (!valid)
-    throw new Error(
-      `Failed to validate config due to errors ${JSON.stringify(
-        validate.errors
-      )}`
-    );
 }

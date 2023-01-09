@@ -35,3 +35,8 @@ export function convertPriceToOrderPrice(price: number, bid: boolean): number {
   let orderPrice = utils.convertDecimalToNativeInteger(price);
   return roundTickSize(orderPrice, bid);
 }
+
+export function diffInBps(x, y: number): number {
+  let diff = Math.abs(x - y);
+  return (diff / y) * constants.BPS_FACTOR;
+}
