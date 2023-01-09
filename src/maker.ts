@@ -10,21 +10,20 @@ import {
   events,
   types,
 } from "@zetamarkets/sdk";
-import { Connection } from "@solana/web3.js";
+import { Connection, Transaction } from "@solana/web3.js";
+import { MARKET_INDEXES } from "./constants";
 import { Config } from "./configuration";
+import { convertPriceToOrderPrice } from "./math";
 import { State } from "./state";
+import { Quote, Theo } from "./types";
 import { assetToMarket, initializeClientState } from "./utils";
 import ccxt from "ccxt";
-import { Quote, Theo } from "./types";
-import { MARKET_INDEXES } from "./constants";
-import { Transaction } from "@solana/web3.js";
-import { convertPriceToOrderPrice } from "./math";
 
 export class Maker {
   private config: Config;
   private state: State;
   private zetaClient: Client;
-  private mmExchange: ccxt.ExchangePro;
+  private markExchange: ccxt.ExchangePro;
   private assets: assets.Asset[];
   private isShuttingDown: boolean = false;
 
@@ -32,7 +31,7 @@ export class Maker {
     this.config = config;
     this.assets = Array.from(config.assets.keys());
     this.state = new State(config.assets);
-    this.mmExchange = new ccxt.pro[config.mmExchange]();
+    this.markExchange = new ccxt.pro[config.mmExchange]();
   }
 
   async initialize() {
@@ -125,7 +124,7 @@ export class Maker {
 
   private async monitorMMOrderbook(asset: assets.Asset) {
     const market = assetToMarket(asset);
-    const orderbook = await this.mmExchange.watchOrderBook(market);
+    const orderbook = await this.markExchange.watchOrderBook(market);
 
     if (orderbook.bids.length > 0 && orderbook.asks.length > 0) {
       const ticker = {

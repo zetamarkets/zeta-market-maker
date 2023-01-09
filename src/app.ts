@@ -1,6 +1,6 @@
 #!ts-node
 
-// Starts the MM process, with shutdown procedures.
+// Starts the MM process, shuts down on stale prices.
 
 import { loadConfig } from "./configuration";
 import { Maker } from "./maker";
@@ -24,10 +24,11 @@ async function main() {
   // periodic stale price check
   setInterval(async () => {
     const now = Date.now();
-    const staleTheosTs = allAssets
-      .map((asset) => now - maker.getTheo(asset)?.timestamp)
-      .filter((ageMs) => ageMs > config.markPriceStaleIntervalMs);
-    if (staleTheosTs.length > 0) await die(`stale mark prices`);
+    const staleTheo = allAssets.find(
+      (asset) =>
+        now - maker.getTheo(asset)?.timestamp > config.markPriceStaleIntervalMs
+    );
+    if (staleTheo) await die(`stale mark prices`);
   }, config.markPriceStaleIntervalMs);
 
   process.on("SIGINT", async () => {
