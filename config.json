@@ -4,9 +4,8 @@
   "programId": "BG3oRikW8d16YjUEmX3ZxHm9SiJzrGtMhsSR8aCw1Cd7",
   "mmExchange": "bybit",
   "positionFetchIntervalMs": 30000,
-  "markPriceStaleIntervalMs": 31000,
+  "markPriceStaleIntervalMs": 30000,
   "rebalanceIntervalMs": 10000,
-  "riskStatsFetchIntervalMs": 30000,
 
   "assets": {
     "SOL": {

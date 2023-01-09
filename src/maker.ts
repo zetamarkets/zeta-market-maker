@@ -8,7 +8,7 @@ import {
   assets,
   programTypes,
   events,
-  Decimal,
+  types,
 } from "@zetamarkets/sdk";
 import { Connection } from "@solana/web3.js";
 import { Config } from "./configuration";
@@ -16,16 +16,17 @@ import { State } from "./state";
 import { assetToMarket, initializeClientState } from "./utils";
 import ccxt from "ccxt";
 import { Quote, Theo } from "./types";
-import { Quoter } from "./quoter";
 import { MARKET_INDEXES } from "./constants";
+import { Transaction } from "@solana/web3.js";
+import { convertPriceToOrderPrice } from "./math";
 
 export class Maker {
   private config: Config;
   private state: State;
-  private quoter: Quoter;
   private zetaClient: Client;
   private mmExchange: ccxt.ExchangePro;
   private assets: assets.Asset[];
+  private isShuttingDown: boolean = false;
 
   constructor(config: Config) {
     this.config = config;
@@ -64,8 +65,6 @@ export class Maker {
 
     await initializeClientState(this.zetaClient, assets);
 
-    this.quoter = new Quoter(this.zetaClient);
-
     try {
       console.log(`...kicking off WS monitoring`);
       // monitor mm orderbook for price updates, via WS
@@ -94,7 +93,7 @@ export class Maker {
       console.log(`Maker (${this.config.network}) initialized!`);
     } catch (e) {
       console.error(`Script error: ${e}`);
-      this.quoter.shutdown();
+      this.shutdown();
     }
   }
 
@@ -103,7 +102,25 @@ export class Maker {
   }
 
   async shutdown() {
-    await this.quoter.shutdown();
+    if (!this.isShuttingDown) {
+      console.log(`Trader not shutting down already`);
+      return;
+    }
+
+    this.isShuttingDown = false;
+    try {
+      let retry = 0;
+      while (retry < 10) {
+        try {
+          await this.zetaClient.cancelAllOrders();
+        } catch (e) {
+          retry++;
+          console.log(`Zeta shutdown error ${e}, retry ${retry}...`);
+        }
+      }
+    } finally {
+      this.zetaClient.close();
+    }
   }
 
   private async monitorMMOrderbook(asset: assets.Asset) {
@@ -127,7 +144,7 @@ export class Maker {
         timestamp: Date.now(),
       };
       const quotes = this.state.setMarkPriceUpdate(ticker, Date.now());
-      if (quotes.length > 0) await this.quoter.sendZetaQuotes(quotes);
+      if (quotes.length > 0) await this.sendZetaQuotes(quotes);
     }
   }
 
@@ -152,7 +169,7 @@ export class Maker {
           missing
         )} replaced with:${JSON.stringify(replacements)}`
       );
-      await this.quoter.sendZetaQuotes(replacements);
+      await this.sendZetaQuotes(replacements);
     }
   }
 
@@ -183,5 +200,84 @@ export class Maker {
         this.state.setPositionUpdate(asset, pos.marketIndex, pos.size);
       }
     }
+  }
+
+  private async sendZetaQuotes(quotes: Quote[]) {
+    await Promise.all(
+      quotes.map(async (quote) => {
+        let txs = [];
+        const ixs = [
+          this.zetaClient.createCancelAllMarketOrdersInstruction(
+            quote.asset,
+            quote.marketIndex
+          ),
+        ];
+
+        if (quote.bidSize != 0) {
+          const price = convertPriceToOrderPrice(quote.bidPrice, true);
+          const size = utils.convertDecimalToNativeLotSize(quote.bidSize);
+          ixs.push(
+            this.zetaClient.createPlaceOrderInstruction(
+              quote.asset,
+              quote.marketIndex,
+              price,
+              size,
+              types.Side.BID,
+              undefined,
+              quote.bidClientOrderId
+            )
+          );
+        }
+
+        // add asks quotes
+        if (quote.askSize != 0) {
+          const price = convertPriceToOrderPrice(quote.askPrice, false);
+          const size = utils.convertDecimalToNativeLotSize(quote.askSize);
+          ixs.push(
+            this.zetaClient.createPlaceOrderInstruction(
+              quote.asset,
+              quote.marketIndex,
+              price,
+              size,
+              types.Side.ASK,
+              undefined,
+              quote.askClientOrderId
+            )
+          );
+        }
+
+        const tx = new Transaction().add(...ixs);
+        txs.push(tx);
+
+        try {
+          // execute first level txs (with cancel)
+          await Promise.all(
+            txs.map(
+              async (tx) =>
+                await utils.processTransaction(this.zetaClient.provider, tx)
+            )
+          );
+        } catch (e) {
+          // in case of any error - cancel any newly placed orders
+          console.log("Failed to send txns, cancelling quotes", e);
+          try {
+            const cancelTx = new Transaction();
+            const marketIndices = quotes.map((x) => x.marketIndex);
+            for (var index of marketIndices) {
+              cancelTx.add(
+                this.zetaClient.createCancelAllMarketOrdersInstruction(
+                  quote.asset,
+                  index
+                )
+              );
+            }
+
+            await utils.processTransaction(this.zetaClient.provider, cancelTx);
+          } catch (e) {
+            console.log("Failed to cancel orders", e);
+          }
+        }
+      })
+    );
   }
 }

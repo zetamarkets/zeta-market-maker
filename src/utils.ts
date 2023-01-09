@@ -60,7 +60,7 @@ export function assetToMarket(asset: assets.Asset): string {
 }
 
 // generates ids based on current timestamp.
-// NOTE: assumes only 1 creator to exist at the time, and the rate of id generation to be > 1/ms (in case creator is re-initialized)
+// assumes only 1 creator to exist at the time, and the rate of id generation to be > 1/ms
 // based on Atomics: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/add
 export function idCreator(start?: number): () => number {
   const buffer = new SharedArrayBuffer(BigInt64Array.BYTES_PER_ELEMENT);
