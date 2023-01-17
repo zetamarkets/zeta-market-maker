@@ -37,8 +37,6 @@ export interface Quote {
   bidSize: number;
   askPrice: number;
   askSize: number;
-  bidClientOrderId: number;
-  askClientOrderId: number;
 }
 
 export interface Theo {

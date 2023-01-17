@@ -58,16 +58,3 @@ export function assetToMarket(asset: assets.Asset): string {
       return "SOL/USDT:USDT";
   }
 }
-
-// generates ids based on current timestamp.
-// assumes only 1 creator to exist at the time, and the rate of id generation to be > 1/ms
-// based on Atomics: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/add
-export function idCreator(start?: number): () => number {
-  const buffer = new SharedArrayBuffer(BigInt64Array.BYTES_PER_ELEMENT);
-  const uint32 = new BigInt64Array(buffer);
-  uint32[0] = BigInt(start ?? Date.now());
-  function createId(): number {
-    return Number(Atomics.add(uint32, 0, 1n));
-  }
-  return createId;
-}
