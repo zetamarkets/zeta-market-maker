@@ -18,7 +18,6 @@ export interface TopLevel {
 }
 
 export interface TopLevelMsg {
-  // Should really switch enum to contain string instead of number;
   assetName: string;
   asset: assets.Asset;
   topLevel: TopLevel;

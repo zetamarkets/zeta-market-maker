@@ -1,14 +1,8 @@
 import { assets } from "@zetamarkets/sdk";
 import { Theo, TopLevelMsg, Quote } from "./types";
-import {
-  roundLotSize,
-  calculateFair,
-  calculateSpread,
-  convertPriceToOrderPrice,
-} from "./math";
+import { roundLotSize, calculateFair, calculateSpread } from "./math";
 import { AssetParam, Instrument } from "./configuration";
 import { diffInBps } from "./math";
-import { convertDecimalToNativeLotSize } from "@zetamarkets/sdk/dist/utils";
 
 export class State {
   private assetParams: Map<assets.Asset, AssetParam>;
@@ -18,10 +12,6 @@ export class State {
 
   constructor(assetParams: Map<assets.Asset, AssetParam>) {
     this.assetParams = assetParams;
-  }
-
-  getCurrentQuotes(asset: assets.Asset): Quote[] {
-    return this.desiredQuotes.get(asset);
   }
 
   setMarkPriceUpdate(msg: TopLevelMsg, timestamp: number) {
@@ -41,26 +31,26 @@ export class State {
     return this.theos.get(asset);
   }
 
-  calcQuotes(asset: assets.Asset): Quote[] {
+  getCurrentQuotes(asset: assets.Asset): Quote[] {
+    return this.desiredQuotes.get(asset);
+  }
+
+  calcQuoteRefreshes(asset: assets.Asset): Quote[] {
     const theo = this.theos.get(asset);
     if (!theo) return [];
 
-    const quotes = this._calcQuotes(
-      asset,
-      this.assetParams.get(asset).instruments,
-      theo
-    );
+    const params = this.assetParams.get(asset);
+    const newQuotes = this._calcQuotes(asset, params.instruments, theo);
 
     // compare with desired quotes bid/ask sizes
     const desiredQuotes = this.desiredQuotes.get(asset);
     if (!desiredQuotes) {
-      console.log(`Will issue new ${asset} quotes ${JSON.stringify(quotes)}`);
-      this.desiredQuotes.set(asset, quotes);
-      return quotes;
+      this.desiredQuotes.set(asset, newQuotes);
+      return newQuotes;
     } else {
       // if find any diffs with desiredQuotes, add re-issue all quotes for this asset
       const requoteBps = this.assetParams.get(asset).requoteBps;
-      const shouldRequote = quotes.some((quote) => {
+      const shouldRequote = newQuotes.some((quote) => {
         const desiredQuote = desiredQuotes.find(
           (x) => x.asset == quote.asset && x.marketIndex == quote.marketIndex
         );
@@ -83,54 +73,21 @@ export class State {
         } else return false;
       });
       if (shouldRequote) {
-        console.log(`Will issue ${asset} quotes ${JSON.stringify(quotes)}`);
-        this.desiredQuotes.set(asset, quotes);
-        return quotes;
+        this.desiredQuotes.set(asset, newQuotes);
+        return newQuotes;
       } else return [];
     }
   }
 
-  // calculate quotes based on current exposure and quoteCashDelta/maxCashDelta params, price spread
   private _calcQuotes(
     asset: assets.Asset,
     instruments: Instrument[],
     theo: Theo
   ): Quote[] {
-    // get zeta position totals
-    if (theo == undefined) {
-      console.log(`No theo for ${asset} yet`);
-      return [];
-    }
-
-    const quotes = [];
-    for (var instrument of instruments) {
-      let baseDelta =
-        this.positions.get(`${asset}-${instrument.marketIndex}`) ?? 0;
-
-      let cashDelta = Math.abs(baseDelta * theo.theo);
+    const quotes = instruments.map((instrument) => {
       const params = this.assetParams.get(asset);
-      let bidQuoteCashDelta = Math.min(
-        instrument.quoteCashDelta,
-        params.maxCashDelta
-      ); // should always be quoteCashDelta
-      let askQuoteCashDelta = bidQuoteCashDelta;
-
-      const maxCashDeltaRemainder = Math.max(
-        0,
-        params.maxCashDelta - cashDelta
-      );
-      if (baseDelta > 0) {
-        bidQuoteCashDelta = Math.min(bidQuoteCashDelta, maxCashDeltaRemainder);
-      } else {
-        askQuoteCashDelta = Math.min(askQuoteCashDelta, maxCashDeltaRemainder);
-      }
-
-      let bidQuoteSize = roundLotSize(
-        bidQuoteCashDelta / theo.theo,
-        params.quoteLotSize
-      );
-      let askQuoteSize = roundLotSize(
-        askQuoteCashDelta / theo.theo,
+      let quoteSize = roundLotSize(
+        instrument.quoteCashDelta / theo.theo,
         params.quoteLotSize
       );
 
@@ -139,16 +96,15 @@ export class State {
         this.assetParams.get(asset).widthBps
       );
 
-      quotes.push({
+      return {
         asset,
         marketIndex: instrument.marketIndex,
-        bidPrice: convertPriceToOrderPrice(spread.bid, true),
-        askPrice: convertPriceToOrderPrice(spread.ask, false),
-        bidSize: convertDecimalToNativeLotSize(bidQuoteSize),
-        askSize: convertDecimalToNativeLotSize(askQuoteSize),
-      });
-      cashDelta += bidQuoteSize - askQuoteSize;
-    }
+        bidPrice: spread.bid,
+        askPrice: spread.ask,
+        bidSize: quoteSize,
+        askSize: quoteSize,
+      };
+    });
     return quotes;
   }
 }

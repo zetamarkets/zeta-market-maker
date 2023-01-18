@@ -2,15 +2,14 @@ import { PublicKey, Keypair } from "@solana/web3.js";
 import { utils, network, Network, assets } from "@zetamarkets/sdk";
 import { MarketIndex } from "./types";
 
-// Before parsing.
 export interface ConfigRaw {
   network: string;
   endpoint: string;
   programId: string;
   markExchange: string;
-  positionFetchIntervalMs: number;
+  requoteIntervalMs: number;
+  positionRefreshIntervalMs: number;
   markPriceStaleIntervalMs: number;
-  rebalanceIntervalMs: number;
   assets: Object;
 }
 
@@ -20,7 +19,6 @@ export interface Instrument {
 }
 
 export interface AssetParam {
-  maxCashDelta: number;
   quoteLotSize: number;
   widthBps: number;
   requoteBps: number;
@@ -32,9 +30,9 @@ export interface Config {
   endpoint: string;
   programId: PublicKey;
   markExchange: string;
-  positionFetchIntervalMs: number;
+  requoteIntervalMs: number;
+  positionRefreshIntervalMs: number;
   markPriceStaleIntervalMs: number;
-  rebalanceIntervalMs: number;
   assets: Map<assets.Asset, AssetParam>;
   // from secrets file
   makerWallet: Keypair;
@@ -61,9 +59,9 @@ export function loadConfig(): Config {
     endpoint: config.endpoint,
     programId,
     markExchange: config.markExchange,
-    positionFetchIntervalMs: config.positionFetchIntervalMs,
+    requoteIntervalMs: config.requoteIntervalMs,
+    positionRefreshIntervalMs: config.positionRefreshIntervalMs,
     markPriceStaleIntervalMs: config.markPriceStaleIntervalMs,
-    rebalanceIntervalMs: config.rebalanceIntervalMs,
     assets: assetParams,
     // from secrets
     makerWallet,

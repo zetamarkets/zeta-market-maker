@@ -58,3 +58,7 @@ export function assetToMarket(asset: assets.Asset): string {
       return "SOL/USDT:USDT";
   }
 }
+
+export function stringifyArr(xs: any[]): string {
+  return xs.map((x) => `\n- ${JSON.stringify(x)}`).join("");
+}

@@ -15,8 +15,10 @@ import { MARKET_INDEXES } from "./constants";
 import { Config } from "./configuration";
 import { State } from "./state";
 import { Quote, Theo } from "./types";
-import { assetToMarket, initializeClientState } from "./utils";
+import { assetToMarket, initializeClientState, stringifyArr } from "./utils";
 import ccxt from "ccxt";
+import { convertPriceToOrderPrice } from "./math";
+import { convertDecimalToNativeLotSize } from "@zetamarkets/sdk/dist/utils";
 
 export class Maker {
   private config: Config;
@@ -78,7 +80,7 @@ export class Maker {
             await this.refreshZetaQuotes(asset);
           })
         );
-      }, this.config.positionFetchIntervalMs);
+      }, this.config.requoteIntervalMs);
 
       setInterval(async () => {
         await Promise.all(
@@ -86,7 +88,7 @@ export class Maker {
             await this.refreshZetaPositions(asset);
           })
         );
-      }, this.config.rebalanceIntervalMs);
+      }, this.config.positionRefreshIntervalMs);
 
       console.log(`Maker (${this.config.network}) initialized!`);
     } catch (e) {
@@ -124,7 +126,6 @@ export class Maker {
   private async monitorMakerOrderbook(asset: assets.Asset) {
     const market = assetToMarket(asset);
     const orderbook = await this.markExchange.watchOrderBook(market);
-
     if (orderbook.bids.length > 0 && orderbook.asks.length > 0) {
       const ticker = {
         assetName: market,
@@ -142,40 +143,50 @@ export class Maker {
         timestamp: Date.now(),
       };
       this.state.setMarkPriceUpdate(ticker, Date.now());
-      const quotes = this.state.calcQuotes(asset);
-      if (quotes.length > 0) await this.sendZetaQuotes(quotes);
+      const quotes = this.state.calcQuoteRefreshes(asset);
+      const theo = this.state.getTheo(asset).theo;
+      if (quotes.length > 0) {
+        console.log(
+          `Refreshing quotes for ${asset} due to price movement: ${theo}: ${stringifyArr(
+            quotes
+          )}`
+        );
+        await this.sendZetaQuotes(quotes);
+      }
     }
   }
 
-  // recalculate quotes as per currently set prices
+  // recalculate quotes as per currently desired quotes
   private async refreshZetaQuotes(asset: assets.Asset): Promise<void> {
     const subClient = this.zetaClient.subClients.get(asset);
     await subClient.updateState();
-    const existingQuotes = this.state.getCurrentQuotes(asset) ?? [];
+    const existingQuotes = this.state.getCurrentQuotes(asset);
     function matches(o: types.Order, q: Quote): boolean {
       return (
         o.marketIndex == q.marketIndex &&
-        ((o.side == types.Side.ASK &&
-          o.price == q.askPrice &&
-          o.size == q.askSize) ||
-          (o.side == types.Side.BID &&
-            o.price == q.bidPrice &&
-            o.size == q.bidSize))
+        ((o.side == types.Side.ASK && o.size == q.askSize) ||
+          (o.side == types.Side.BID && o.size == q.bidSize))
       );
     }
     const unmatchedOrders = subClient.orders.filter((o) =>
-      existingQuotes.some((q) => !matches(o, q))
+      existingQuotes.every((q) => !matches(o, q))
     );
     const unmatchedQuotes = existingQuotes.filter((q) =>
-      subClient.orders.some((o) => !matches(o, q))
+      subClient.orders.every((o) => !matches(o, q))
     );
     if (unmatchedOrders.length > 0 || unmatchedQuotes.length > 0) {
-      const newQuotes = this.state.calcQuotes(asset);
-      console.log(`Replacing quotes ${JSON.stringify(newQuotes)}
-due to unmatched orders ${JSON.stringify(unmatchedOrders)}
-and unmatched quotes ${JSON.stringify(unmatchedQuotes)}`);
-      await this.sendZetaQuotes(newQuotes);
-    }
+      const quoteRefreshes = this.state.calcQuoteRefreshes(asset);
+      const quotes =
+        quoteRefreshes.length > 0 ? quoteRefreshes : existingQuotes;
+      console.log(`Refreshing quotes for ${asset} due to unmatched orders & quotes
+quotes: ${stringifyArr(quotes)}
+unmatched orders: ${stringifyArr(unmatchedOrders)}
+unmatched quotes: ${stringifyArr(unmatchedQuotes)}`);
+      await this.sendZetaQuotes(quotes);
+    } else
+      console.log(
+        `No quotes (existing ${existingQuotes.length}) to refresh for ${asset}`
+      );
   }
 
   private async handleZetaEvent(eventType: events.EventType, data: any) {
@@ -223,8 +234,8 @@ and unmatched quotes ${JSON.stringify(unmatchedQuotes)}`);
             this.zetaClient.createPlaceOrderInstruction(
               quote.asset,
               quote.marketIndex,
-              quote.bidPrice,
-              quote.bidSize,
+              convertPriceToOrderPrice(quote.bidPrice, true),
+              convertDecimalToNativeLotSize(quote.bidSize),
               types.Side.BID
             )
           );
@@ -234,8 +245,8 @@ and unmatched quotes ${JSON.stringify(unmatchedQuotes)}`);
             this.zetaClient.createPlaceOrderInstruction(
               quote.asset,
               quote.marketIndex,
-              quote.askPrice,
-              quote.askSize,
+              convertPriceToOrderPrice(quote.askPrice, false),
+              convertDecimalToNativeLotSize(quote.askSize),
               types.Side.ASK
             )
           );

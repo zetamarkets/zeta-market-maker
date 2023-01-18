@@ -3,13 +3,13 @@
   "endpoint": "https://api.devnet.solana.com",
   "programId": "BG3oRikW8d16YjUEmX3ZxHm9SiJzrGtMhsSR8aCw1Cd7",
   "markExchange": "bybit",
-  "positionFetchIntervalMs": 30000,
+
+  "requoteIntervalMs": 30000,
+  "positionRefreshIntervalMs": 10000,
   "markPriceStaleIntervalMs": 30000,
-  "rebalanceIntervalMs": 10000,
 
   "assets": {
     "SOL": {
-      "maxCashDelta": 1000,
       "quoteLotSize": 1,
       "widthBps": 10,
       "requoteBps": 5,
@@ -21,7 +21,6 @@
       ]
     },
     "BTC": {
-      "maxCashDelta": 1000,
       "quoteLotSize": 0.001,
       "widthBps": 10,
       "requoteBps": 5,
@@ -34,7 +33,6 @@
     },
     "ETH": {
       "asset": "ETH",
-      "maxCashDelta": 1000,
       "quoteLotSize": 0.01,
       "widthBps": 10,
       "requoteBps": 5,
