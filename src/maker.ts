@@ -66,12 +66,6 @@ export class Maker {
     await initializeClientState(this.zetaClient, assets);
 
     try {
-      console.log(`...kicking off WS monitoring`);
-      // monitor mm orderbook for price updates, via WS
-      assets.forEach(async (asset) => {
-        while (true) await this.monitorMakerOrderbook(asset);
-      });
-
       console.log(`...kicking off periodic fetch monitoring`);
       // periodic refresh of all quotes, to eg. account for missing (filled/cancelled) quotes
       setInterval(async () => {
@@ -89,6 +83,12 @@ export class Maker {
           })
         );
       }, this.config.positionRefreshIntervalMs);
+
+      console.log(`...kicking off WS monitoring`);
+      // monitor maker orderbook for price updates, via WS
+      assets.forEach(async (asset) => {
+        while (true) await this.monitorMakerOrderbook(asset);
+      });
 
       console.log(`Maker (${this.config.network}) initialized!`);
     } catch (e) {
