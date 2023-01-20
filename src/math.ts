@@ -1,7 +1,8 @@
 import { TopLevelMsg } from "./types";
 import { utils } from "@zetamarkets/sdk";
-import * as constants from "./constants";
 import { Spread } from "./types";
+
+const BPS_FACTOR = 10000;
 
 // Weighted midpoint
 export function calculateFair(msg: TopLevelMsg): number {
@@ -24,7 +25,7 @@ export function roundLotSize(size: number, lotSize: number) {
 }
 
 export function calculateSpread(price: number, spreadBps: number): Spread {
-  let diff = (price * spreadBps) / constants.BPS_FACTOR;
+  let diff = (price * spreadBps) / BPS_FACTOR;
   return {
     bid: price - diff,
     ask: price + diff,
@@ -38,5 +39,5 @@ export function convertPriceToOrderPrice(price: number, bid: boolean): number {
 
 export function diffInBps(x, y: number): number {
   let diff = Math.abs(x - y);
-  return (diff / y) * constants.BPS_FACTOR;
+  return (diff / y) * BPS_FACTOR;
 }

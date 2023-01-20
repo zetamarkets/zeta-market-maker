@@ -8,7 +8,6 @@ export class State {
   private assetParams: Map<assets.Asset, AssetParam>;
   private desiredQuotes: Map<string, Quote[]> = new Map();
   private theos: Map<assets.Asset, Theo> = new Map();
-  private positions: Map<string, number> = new Map();
 
   constructor(assetParams: Map<assets.Asset, AssetParam>) {
     this.assetParams = assetParams;
@@ -21,10 +20,6 @@ export class State {
       topAsk: msg.topLevel.ask,
       timestamp,
     });
-  }
-
-  setPositionUpdate(asset: assets.Asset, marketIndex: number, size: number) {
-    this.positions.set(`${asset}-${marketIndex}`, size);
   }
 
   getTheo(asset: assets.Asset): Theo {

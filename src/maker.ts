@@ -6,12 +6,9 @@ import {
   Exchange,
   utils,
   assets,
-  programTypes,
-  events,
   types,
 } from "@zetamarkets/sdk";
 import { Connection, Transaction } from "@solana/web3.js";
-import { MARKET_INDEXES } from "./constants";
 import { Config } from "./configuration";
 import { State } from "./state";
 import { Quote, Theo } from "./types";
@@ -46,22 +43,10 @@ export class Maker {
       this.config.programId,
       this.config.network,
       connection,
-      utils.defaultCommitment(),
-      undefined,
-      undefined,
-      async (_asset: assets.Asset, eventType: events.EventType, data: any) => {
-        if (this.zetaClient) await this.handleZetaEvent(eventType, data);
-      }
+      utils.defaultCommitment()
     );
 
-    this.zetaClient = await Client.load(
-      connection,
-      wallet,
-      undefined,
-      async (_asset: assets.Asset, eventType: events.EventType, data: any) => {
-        if (this.zetaClient) await this.handleZetaEvent(eventType, data);
-      }
-    );
+    this.zetaClient = await Client.load(connection, wallet);
 
     await initializeClientState(this.zetaClient, assets);
 
@@ -75,14 +60,6 @@ export class Maker {
           })
         );
       }, this.config.requoteIntervalMs);
-
-      setInterval(async () => {
-        await Promise.all(
-          this.assets.map(async (asset) => {
-            await this.refreshZetaPositions(asset);
-          })
-        );
-      }, this.config.positionRefreshIntervalMs);
 
       console.log(`...kicking off WS monitoring`);
       // monitor maker orderbook for price updates, via WS
@@ -187,35 +164,6 @@ unmatched quotes: ${stringifyArr(unmatchedQuotes)}`);
       console.log(
         `No quotes (existing ${existingQuotes.length}) to refresh for ${asset}`
       );
-  }
-
-  private async handleZetaEvent(eventType: events.EventType, data: any) {
-    switch (eventType) {
-      case events.EventType.TRADEV2: {
-        const event = data as programTypes.TradeEventV2;
-        let asset = assets.indexToAsset(event.asset);
-        await this.refreshZetaPositions(asset);
-        break;
-      }
-      case events.EventType.USER: {
-        await Promise.all(
-          this.assets.map(
-            async (asset) => await this.refreshZetaPositions(asset)
-          )
-        );
-        break;
-      }
-    }
-  }
-
-  private async refreshZetaPositions(asset: assets.Asset) {
-    const subClient = this.zetaClient.subClients.get(asset);
-    await subClient.updateState();
-    for (var pos of subClient.marginPositions) {
-      if (MARKET_INDEXES.includes(pos.marketIndex)) {
-        this.state.setPositionUpdate(asset, pos.marketIndex, pos.size);
-      }
-    }
   }
 
   private async sendZetaQuotes(quotes: Quote[]) {

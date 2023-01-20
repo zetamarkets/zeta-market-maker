@@ -5,7 +5,6 @@
   "markExchange": "bybit",
 
   "requoteIntervalMs": 30000,
-  "positionRefreshIntervalMs": 10000,
   "markPriceStaleIntervalMs": 30000,
 
   "assets": {

@@ -8,7 +8,6 @@ export interface ConfigRaw {
   programId: string;
   markExchange: string;
   requoteIntervalMs: number;
-  positionRefreshIntervalMs: number;
   markPriceStaleIntervalMs: number;
   assets: Object;
 }
@@ -31,7 +30,6 @@ export interface Config {
   programId: PublicKey;
   markExchange: string;
   requoteIntervalMs: number;
-  positionRefreshIntervalMs: number;
   markPriceStaleIntervalMs: number;
   assets: Map<assets.Asset, AssetParam>;
   // from secrets file
@@ -60,7 +58,6 @@ export function loadConfig(): Config {
     programId,
     markExchange: config.markExchange,
     requoteIntervalMs: config.requoteIntervalMs,
-    positionRefreshIntervalMs: config.positionRefreshIntervalMs,
     markPriceStaleIntervalMs: config.markPriceStaleIntervalMs,
     assets: assetParams,
     // from secrets

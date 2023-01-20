@@ -7,7 +7,13 @@ import {
   instructions,
 } from "@zetamarkets/sdk";
 import { PublicKey, Transaction } from "@solana/web3.js";
-import { MARKET_INDEXES } from "./constants";
+import { MarketIndex } from "./types";
+
+export const MARKET_INDEXES = [
+  MarketIndex.FUT1,
+  MarketIndex.FUT2,
+  MarketIndex.PERP,
+];
 
 export async function initializeClientState(
   zetaClient: Client,
