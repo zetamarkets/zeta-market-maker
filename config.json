@@ -1,0 +1,46 @@
+{
+  "network": "devnet",
+  "endpoint": "https://api.devnet.solana.com",
+  "programId": "BG3oRikW8d16YjUEmX3ZxHm9SiJzrGtMhsSR8aCw1Cd7",
+  "markExchange": "bybit",
+
+  "requoteIntervalMs": 30000,
+  "markPriceStaleIntervalMs": 30000,
+
+  "assets": {
+    "SOL": {
+      "quoteLotSize": 1,
+      "widthBps": 10,
+      "requoteBps": 5,
+      "instruments": [
+        {
+          "marketIndex": 137,
+          "quoteCashDelta": 200
+        }
+      ]
+    },
+    "BTC": {
+      "quoteLotSize": 0.001,
+      "widthBps": 10,
+      "requoteBps": 5,
+      "instruments": [
+        {
+          "marketIndex": 137,
+          "quoteCashDelta": 200
+        }
+      ]
+    },
+    "ETH": {
+      "asset": "ETH",
+      "quoteLotSize": 0.01,
+      "widthBps": 10,
+      "requoteBps": 5,
+      "instruments": [
+        {
+          "marketIndex": 137,
+          "quoteCashDelta": 200
+        }
+      ]
+    }
+  }
+}
