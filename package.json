@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@solana/web3.js": "1.70.3",
-    "@zetamarkets/sdk": "0.20.0",
+    "@zetamarkets/sdk": "0.21.0",
     "ccxt": "2.2.50",
     "log-timestamp": "^0.3.0",
     "ts-node": "^10.9.1",
