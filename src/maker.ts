@@ -38,12 +38,18 @@ export class Maker {
     const wallet = new Wallet(this.config.makerWallet);
     const assets = Array.from(this.config.assets.keys());
 
-    await Exchange.load(
-      assets,
-      this.config.programId,
+    const loadExchangeConfig = types.defaultLoadExchangeConfig(
       this.config.network,
       connection,
-      utils.defaultCommitment()
+      assets,
+      utils.defaultCommitment(),
+      0,
+      true
+    );
+    await Exchange.load(
+      loadExchangeConfig
+      // wallet
+      // , exchangeCallback
     );
 
     this.zetaClient = await Client.load(connection, wallet);
