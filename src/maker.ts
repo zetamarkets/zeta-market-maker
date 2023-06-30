@@ -7,6 +7,7 @@ import {
   utils,
   assets,
   types,
+  constants,
 } from "@zetamarkets/sdk";
 import { Connection, Transaction } from "@solana/web3.js";
 import { Config } from "./configuration";
@@ -22,7 +23,7 @@ export class Maker {
   private state: State;
   private zetaClient: Client;
   private markExchange: ccxt.ExchangePro;
-  private assets: assets.Asset[];
+  private assets: constants.Asset[];
   private isShuttingDown: boolean = false;
 
   constructor(config: Config) {
@@ -41,7 +42,6 @@ export class Maker {
     const loadExchangeConfig = types.defaultLoadExchangeConfig(
       this.config.network,
       connection,
-      assets,
       utils.defaultCommitment(),
       0,
       true
@@ -80,7 +80,7 @@ export class Maker {
     }
   }
 
-  getTheo(asset: assets.Asset): Theo {
+  getTheo(asset: constants.Asset): Theo {
     return this.state.getTheo(asset);
   }
 
@@ -106,7 +106,7 @@ export class Maker {
     }
   }
 
-  private async monitorMakerOrderbook(asset: assets.Asset) {
+  private async monitorMakerOrderbook(asset: constants.Asset) {
     const market = assetToMarket(asset);
     const orderbook = await this.markExchange.watchOrderBook(market);
     if (orderbook.bids.length > 0 && orderbook.asks.length > 0) {
@@ -140,7 +140,7 @@ export class Maker {
   }
 
   // recalculate quotes as per currently desired quotes
-  private async refreshZetaQuotes(asset: assets.Asset): Promise<void> {
+  private async refreshZetaQuotes(asset: constants.Asset): Promise<void> {
     const subClient = this.zetaClient.subClients.get(asset);
     await subClient.updateState();
     const existingQuotes = this.state.getCurrentQuotes(asset);
@@ -185,9 +185,8 @@ unmatched quotes: ${stringifyArr(unmatchedQuotes)}`);
 
         if (quote.bidSize != 0)
           ixs.push(
-            this.zetaClient.createPlaceOrderInstruction(
+            this.zetaClient.createPlacePerpOrderInstruction(
               quote.asset,
-              quote.marketIndex,
               convertPriceToOrderPrice(quote.bidPrice, true),
               convertDecimalToNativeLotSize(quote.bidSize),
               types.Side.BID
@@ -196,9 +195,8 @@ unmatched quotes: ${stringifyArr(unmatchedQuotes)}`);
 
         if (quote.askSize != 0)
           ixs.push(
-            this.zetaClient.createPlaceOrderInstruction(
+            this.zetaClient.createPlacePerpOrderInstruction(
               quote.asset,
-              quote.marketIndex,
               convertPriceToOrderPrice(quote.askPrice, false),
               convertDecimalToNativeLotSize(quote.askSize),
               types.Side.ASK

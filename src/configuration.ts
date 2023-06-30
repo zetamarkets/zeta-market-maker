@@ -1,5 +1,5 @@
 import { PublicKey, Keypair } from "@solana/web3.js";
-import { utils, network, Network, assets } from "@zetamarkets/sdk";
+import { utils, network, Network, assets, constants } from "@zetamarkets/sdk";
 import { MarketIndex } from "./types";
 
 export interface ConfigRaw {
@@ -31,7 +31,7 @@ export interface Config {
   markExchange: string;
   requoteIntervalMs: number;
   markPriceStaleIntervalMs: number;
-  assets: Map<assets.Asset, AssetParam>;
+  assets: Map<constants.Asset, AssetParam>;
   // from secrets file
   makerWallet: Keypair;
 }
@@ -43,7 +43,7 @@ export function loadConfig(): Config {
     Buffer.from(require("../makerWallet.json"))
   );
   const net: Network = network.toNetwork(config.network);
-  const paramAssets: assets.Asset[] = utils.toAssets(
+  const paramAssets: constants.Asset[] = utils.toAssets(
     Object.keys(config.assets)
   );
   const programId: PublicKey = new PublicKey(config.programId);

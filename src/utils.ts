@@ -9,15 +9,9 @@ import {
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { MarketIndex } from "./types";
 
-export const MARKET_INDEXES = [
-  MarketIndex.FUT1,
-  MarketIndex.FUT2,
-  MarketIndex.PERP,
-];
-
 export async function initializeClientState(
   zetaClient: Client,
-  usedAssets: assets.Asset[]
+  usedAssets: constants.Asset[]
 ) {
   for (var a of usedAssets) {
     let sub = zetaClient.getSubClient(a);
@@ -35,32 +29,23 @@ export async function initializeClientState(
       await utils.processTransaction(sub.parent.provider, tx);
     }
 
-    for (var index of MARKET_INDEXES) {
-      if (sub.openOrdersAccounts[index].equals(PublicKey.default)) {
-        console.log(
-          `Creating open orders account for ${assets.assetToName(
-            a
-          )} : Index: ${index}`
-        );
-
-        let address =
-          index == constants.PERP_INDEX
-            ? Exchange.getPerpMarket(a).address
-            : Exchange.getMarket(a, index).address;
-
-        await sub.initializeOpenOrdersAccount(address);
-      }
+    if (
+      sub.openOrdersAccounts[constants.PERP_INDEX].equals(PublicKey.default)
+    ) {
+      console.log(`Creating open orders account for ${assets.assetToName(a)}`);
+      let address = Exchange.getPerpMarket(a).address;
+      await sub.initializeOpenOrdersAccount(address);
     }
   }
 }
 
-export function assetToMarket(asset: assets.Asset): string {
+export function assetToMarket(asset: constants.Asset): string {
   switch (asset) {
-    case assets.Asset.BTC:
+    case constants.Asset.BTC:
       return "BTC/USDT:USDT";
-    case assets.Asset.ETH:
+    case constants.Asset.ETH:
       return "ETH/USDT:USDT";
-    case assets.Asset.SOL:
+    case constants.Asset.SOL:
       return "SOL/USDT:USDT";
   }
 }

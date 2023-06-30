@@ -1,4 +1,3 @@
-import { assets } from "@zetamarkets/sdk";
 import { constants } from "@zetamarkets/sdk";
 
 export enum MarketIndex {
@@ -19,7 +18,7 @@ export interface TopLevel {
 
 export interface TopLevelMsg {
   assetName: string;
-  asset: assets.Asset;
+  asset: constants.Asset;
   topLevel: TopLevel;
   timestamp: number;
 }
@@ -30,7 +29,7 @@ export interface Spread {
 }
 
 export interface Quote {
-  asset: assets.Asset;
+  asset: constants.Asset;
   marketIndex: number;
   bidPrice: number;
   bidSize: number;

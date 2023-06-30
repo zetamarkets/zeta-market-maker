@@ -1,15 +1,15 @@
-import { assets } from "@zetamarkets/sdk";
+import { constants } from "@zetamarkets/sdk";
 import { Theo, TopLevelMsg, Quote } from "./types";
 import { roundLotSize, calculateFair, calculateSpread } from "./math";
 import { AssetParam, Instrument } from "./configuration";
 import { diffInBps } from "./math";
 
 export class State {
-  private assetParams: Map<assets.Asset, AssetParam>;
+  private assetParams: Map<constants.Asset, AssetParam>;
   private desiredQuotes: Map<string, Quote[]> = new Map();
-  private theos: Map<assets.Asset, Theo> = new Map();
+  private theos: Map<constants.Asset, Theo> = new Map();
 
-  constructor(assetParams: Map<assets.Asset, AssetParam>) {
+  constructor(assetParams: Map<constants.Asset, AssetParam>) {
     this.assetParams = assetParams;
   }
 
@@ -22,15 +22,15 @@ export class State {
     });
   }
 
-  getTheo(asset: assets.Asset): Theo {
+  getTheo(asset: constants.Asset): Theo {
     return this.theos.get(asset);
   }
 
-  getCurrentQuotes(asset: assets.Asset): Quote[] {
+  getCurrentQuotes(asset: constants.Asset): Quote[] {
     return this.desiredQuotes.get(asset);
   }
 
-  calcQuoteRefreshes(asset: assets.Asset): Quote[] {
+  calcQuoteRefreshes(asset: constants.Asset): Quote[] {
     const theo = this.theos.get(asset);
     if (!theo) return [];
 
@@ -75,7 +75,7 @@ export class State {
   }
 
   private _calcQuotes(
-    asset: assets.Asset,
+    asset: constants.Asset,
     instruments: Instrument[],
     theo: Theo
   ): Quote[] {
