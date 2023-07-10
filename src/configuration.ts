@@ -1,6 +1,5 @@
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { utils, network, Network, assets, constants } from "@zetamarkets/sdk";
-import { MarketIndex } from "./types";
 
 export interface ConfigRaw {
   network: string;
@@ -12,16 +11,11 @@ export interface ConfigRaw {
   assets: Object;
 }
 
-export interface Instrument {
-  marketIndex: MarketIndex;
-  quoteCashDelta: number;
-}
-
 export interface AssetParam {
   quoteLotSize: number;
   widthBps: number;
   requoteBps: number;
-  instruments: Instrument[];
+  quoteCashDelta: number;
 }
 
 export interface Config {

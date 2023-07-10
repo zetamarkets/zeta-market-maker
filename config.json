@@ -12,35 +12,20 @@
       "quoteLotSize": 1,
       "widthBps": 10,
       "requoteBps": 5,
-      "instruments": [
-        {
-          "marketIndex": 137,
-          "quoteCashDelta": 200
-        }
-      ]
+      "quoteCashDelta": 10000 
     },
     "BTC": {
       "quoteLotSize": 0.001,
       "widthBps": 10,
       "requoteBps": 5,
-      "instruments": [
-        {
-          "marketIndex": 137,
-          "quoteCashDelta": 200
-        }
-      ]
+      "quoteCashDelta": 10000 
     },
     "ETH": {
       "asset": "ETH",
       "quoteLotSize": 0.01,
       "widthBps": 10,
       "requoteBps": 5,
-      "instruments": [
-        {
-          "marketIndex": 137,
-          "quoteCashDelta": 200
-        }
-      ]
+      "quoteCashDelta": 10000 
     }
   }
 }
