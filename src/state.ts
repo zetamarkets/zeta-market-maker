@@ -1,15 +1,15 @@
-import { assets } from "@zetamarkets/sdk";
+import { constants } from "@zetamarkets/sdk";
 import { Theo, TopLevelMsg, Quote } from "./types";
 import { roundLotSize, calculateFair, calculateSpread } from "./math";
-import { AssetParam, Instrument } from "./configuration";
+import { AssetParam } from "./configuration";
 import { diffInBps } from "./math";
 
 export class State {
-  private assetParams: Map<assets.Asset, AssetParam>;
-  private desiredQuotes: Map<string, Quote[]> = new Map();
-  private theos: Map<assets.Asset, Theo> = new Map();
+  private assetParams: Map<constants.Asset, AssetParam>;
+  private desiredQuotes: Map<string, Quote> = new Map();
+  private theos: Map<constants.Asset, Theo> = new Map();
 
-  constructor(assetParams: Map<assets.Asset, AssetParam>) {
+  constructor(assetParams: Map<constants.Asset, AssetParam>) {
     this.assetParams = assetParams;
   }
 
@@ -22,84 +22,69 @@ export class State {
     });
   }
 
-  getTheo(asset: assets.Asset): Theo {
+  getTheo(asset: constants.Asset): Theo {
     return this.theos.get(asset);
   }
 
-  getCurrentQuotes(asset: assets.Asset): Quote[] {
+  getCurrentQuotes(asset: constants.Asset): Quote {
     return this.desiredQuotes.get(asset);
   }
 
-  calcQuoteRefreshes(asset: assets.Asset): Quote[] {
+  calcQuoteRefreshes(asset: constants.Asset): Quote {
     const theo = this.theos.get(asset);
-    if (!theo) return [];
+    if (!theo) return undefined;
 
     const params = this.assetParams.get(asset);
-    const newQuotes = this._calcQuotes(asset, params.instruments, theo);
+    const newQuotes = this._calcQuotes(asset, params.quoteCashDelta, theo);
 
     // compare with desired quotes bid/ask sizes
-    const desiredQuotes = this.desiredQuotes.get(asset);
-    if (!desiredQuotes) {
+    const desiredQuote = this.desiredQuotes.get(asset);
+    if (!desiredQuote) {
       this.desiredQuotes.set(asset, newQuotes);
       return newQuotes;
     } else {
       // if find any diffs with desiredQuotes, add re-issue all quotes for this asset
       const requoteBps = this.assetParams.get(asset).requoteBps;
-      const shouldRequote = newQuotes.some((quote) => {
-        const desiredQuote = desiredQuotes.find(
-          (x) => x.asset == quote.asset && x.marketIndex == quote.marketIndex
-        );
 
-        if (desiredQuote) {
-          const bidPriceMovementBps = diffInBps(
-            desiredQuote.bidPrice,
-            quote.bidPrice
-          );
-          const askPriceMovementBps = diffInBps(
-            desiredQuote.askPrice,
-            quote.askPrice
-          );
-          return (
-            desiredQuote.bidSize != quote.bidSize ||
-            desiredQuote.askSize != quote.askSize ||
-            bidPriceMovementBps > requoteBps ||
-            askPriceMovementBps > requoteBps
-          );
-        } else return false;
-      });
-      if (shouldRequote) {
+      const bidPriceMovementBps = diffInBps(
+        desiredQuote.bidPrice,
+        newQuotes.bidPrice
+      );
+      const askPriceMovementBps = diffInBps(
+        desiredQuote.askPrice,
+        newQuotes.askPrice
+      );
+      if (
+        desiredQuote.bidSize != newQuotes.bidSize ||
+        desiredQuote.askSize != newQuotes.askSize ||
+        bidPriceMovementBps > requoteBps ||
+        askPriceMovementBps > requoteBps
+      ) {
         this.desiredQuotes.set(asset, newQuotes);
         return newQuotes;
-      } else return [];
+      } else return undefined;
     }
   }
 
   private _calcQuotes(
-    asset: assets.Asset,
-    instruments: Instrument[],
+    asset: constants.Asset,
+    cashDelta: number,
     theo: Theo
-  ): Quote[] {
-    const quotes = instruments.map((instrument) => {
-      const params = this.assetParams.get(asset);
-      let quoteSize = roundLotSize(
-        instrument.quoteCashDelta / theo.theo,
-        params.quoteLotSize
-      );
+  ): Quote {
+    const params = this.assetParams.get(asset);
+    let quoteSize = roundLotSize(cashDelta / theo.theo, params.quoteLotSize);
 
-      let spread = calculateSpread(
-        theo.theo,
-        this.assetParams.get(asset).widthBps
-      );
+    let spread = calculateSpread(
+      theo.theo,
+      this.assetParams.get(asset).widthBps
+    );
 
-      return {
-        asset,
-        marketIndex: instrument.marketIndex,
-        bidPrice: spread.bid,
-        askPrice: spread.ask,
-        bidSize: quoteSize,
-        askSize: quoteSize,
-      };
-    });
-    return quotes;
+    return {
+      asset,
+      bidPrice: spread.bid,
+      askPrice: spread.ask,
+      bidSize: quoteSize,
+      askSize: quoteSize,
+    };
   }
 }

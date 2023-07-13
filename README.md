@@ -43,9 +43,7 @@ Comprises modules:
   - `quoteLotSize` - lot sizes for the given instrument
   - `widthBps` - defines the spread between bid & ask
   - `requoteBps` - defines the margin which once breached triggers re-quoting
-  - instrument params
-    - `marketIndex` - instrument index (137 for PERP, 22 & 45 for Futures)
-    - `quoteCashDelta` - cash amount offered on bid & ask
+  - `quoteCashDelta` - cash amount offered on bid & ask
 
 ## Setup
 

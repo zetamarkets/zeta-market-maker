@@ -2,65 +2,59 @@ import {
   assets,
   Exchange,
   constants,
-  Client,
+  CrossClient,
   utils,
   instructions,
 } from "@zetamarkets/sdk";
 import { PublicKey, Transaction } from "@solana/web3.js";
-import { MarketIndex } from "./types";
-
-export const MARKET_INDEXES = [
-  MarketIndex.FUT1,
-  MarketIndex.FUT2,
-  MarketIndex.PERP,
-];
 
 export async function initializeClientState(
-  zetaClient: Client,
-  usedAssets: assets.Asset[]
+  zetaClient: CrossClient,
+  usedAssets: constants.Asset[]
 ) {
+  if (zetaClient.accountManager === null) {
+    console.log(
+      "User has no cross margin account manager. Creating account manager..."
+    );
+    let tx = new Transaction().add(
+      instructions.initializeCrossMarginAccountManagerIx(
+        zetaClient.accountManagerAddress,
+        zetaClient.publicKey
+      )
+    );
+    await utils.processTransaction(zetaClient.provider, tx);
+  }
+  if (zetaClient.account === null) {
+    console.log("User has no cross margin account. Creating account...");
+    let tx = new Transaction().add(
+      instructions.initializeCrossMarginAccountIx(
+        zetaClient.accountAddress,
+        zetaClient.accountManagerAddress,
+        zetaClient.publicKey
+      )
+    );
+    await utils.processTransaction(zetaClient.provider, tx);
+  }
+
   for (var a of usedAssets) {
-    let sub = zetaClient.getSubClient(a);
-
-    if (sub.marginAccount === null) {
-      console.log(`User has no margin account, creating`);
-      let tx = new Transaction();
-      tx.add(
-        instructions.initializeMarginAccountIx(
-          sub.subExchange.zetaGroupAddress,
-          sub.marginAccountAddress,
-          sub.parent.publicKey
-        )
-      );
-      await utils.processTransaction(sub.parent.provider, tx);
-    }
-
-    for (var index of MARKET_INDEXES) {
-      if (sub.openOrdersAccounts[index].equals(PublicKey.default)) {
-        console.log(
-          `Creating open orders account for ${assets.assetToName(
-            a
-          )} : Index: ${index}`
-        );
-
-        let address =
-          index == constants.PERP_INDEX
-            ? Exchange.getPerpMarket(a).address
-            : Exchange.getMarket(a, index).address;
-
-        await sub.initializeOpenOrdersAccount(address);
-      }
+    if (
+      zetaClient.openOrdersAccounts[assets.assetToIndex(a)].equals(
+        PublicKey.default
+      )
+    ) {
+      console.log(`Creating open orders account for ${assets.assetToName(a)}`);
+      await zetaClient.initializeOpenOrdersAccount(a);
     }
   }
 }
 
-export function assetToMarket(asset: assets.Asset): string {
+export function assetToMarket(asset: constants.Asset): string {
   switch (asset) {
-    case assets.Asset.BTC:
+    case constants.Asset.BTC:
       return "BTC/USDT:USDT";
-    case assets.Asset.ETH:
+    case constants.Asset.ETH:
       return "ETH/USDT:USDT";
-    case assets.Asset.SOL:
+    case constants.Asset.SOL:
       return "SOL/USDT:USDT";
   }
 }

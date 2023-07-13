@@ -2,11 +2,12 @@
 
 import {
   Wallet,
-  Client,
+  CrossClient,
   Exchange,
   utils,
   assets,
   types,
+  constants,
 } from "@zetamarkets/sdk";
 import { Connection, Transaction } from "@solana/web3.js";
 import { Config } from "./configuration";
@@ -20,9 +21,9 @@ import { convertDecimalToNativeLotSize } from "@zetamarkets/sdk/dist/utils";
 export class Maker {
   private config: Config;
   private state: State;
-  private zetaClient: Client;
+  private zetaClient: CrossClient;
   private markExchange: ccxt.ExchangePro;
-  private assets: assets.Asset[];
+  private assets: constants.Asset[];
   private isShuttingDown: boolean = false;
 
   constructor(config: Config) {
@@ -41,7 +42,6 @@ export class Maker {
     const loadExchangeConfig = types.defaultLoadExchangeConfig(
       this.config.network,
       connection,
-      assets,
       utils.defaultCommitment(),
       0,
       true
@@ -52,7 +52,7 @@ export class Maker {
       // , exchangeCallback
     );
 
-    this.zetaClient = await Client.load(connection, wallet);
+    this.zetaClient = await CrossClient.load(connection, wallet);
 
     await initializeClientState(this.zetaClient, assets);
 
@@ -60,6 +60,7 @@ export class Maker {
       console.log(`...kicking off periodic fetch monitoring`);
       // periodic refresh of all quotes, to eg. account for missing (filled/cancelled) quotes
       setInterval(async () => {
+        await this.zetaClient.updateState();
         await Promise.all(
           this.assets.map(async (asset) => {
             await this.refreshZetaQuotes(asset);
@@ -80,7 +81,7 @@ export class Maker {
     }
   }
 
-  getTheo(asset: assets.Asset): Theo {
+  getTheo(asset: constants.Asset): Theo {
     return this.state.getTheo(asset);
   }
 
@@ -106,7 +107,7 @@ export class Maker {
     }
   }
 
-  private async monitorMakerOrderbook(asset: assets.Asset) {
+  private async monitorMakerOrderbook(asset: constants.Asset) {
     const market = assetToMarket(asset);
     const orderbook = await this.markExchange.watchOrderBook(market);
     if (orderbook.bids.length > 0 && orderbook.asks.length > 0) {
@@ -128,9 +129,9 @@ export class Maker {
       this.state.setMarkPriceUpdate(ticker, Date.now());
       const quotes = this.state.calcQuoteRefreshes(asset);
       const theo = this.state.getTheo(asset).theo;
-      if (quotes.length > 0) {
+      if (quotes != undefined) {
         console.log(
-          `Refreshing quotes for ${asset} due to price movement: ${theo}: ${stringifyArr(
+          `Refreshing quotes for ${asset} due to price movement: ${theo}: ${JSON.stringify(
             quotes
           )}`
         );
@@ -140,102 +141,81 @@ export class Maker {
   }
 
   // recalculate quotes as per currently desired quotes
-  private async refreshZetaQuotes(asset: assets.Asset): Promise<void> {
-    const subClient = this.zetaClient.subClients.get(asset);
-    await subClient.updateState();
+  private async refreshZetaQuotes(asset: constants.Asset): Promise<void> {
+    // await this.zetaClient.updateState() is called before this fn, once for all assets
     const existingQuotes = this.state.getCurrentQuotes(asset);
     function matches(o: types.Order, q: Quote): boolean {
       return (
-        o.marketIndex == q.marketIndex &&
-        ((o.side == types.Side.ASK && o.size == q.askSize) ||
-          (o.side == types.Side.BID && o.size == q.bidSize))
+        (o.side == types.Side.ASK && o.size == q.askSize) ||
+        (o.side == types.Side.BID && o.size == q.bidSize)
       );
     }
-    const unmatchedOrders = subClient.orders.filter((o) =>
-      existingQuotes.every((q) => !matches(o, q))
-    );
-    const unmatchedQuotes = existingQuotes.filter((q) =>
-      subClient.orders.every((o) => !matches(o, q))
-    );
-    if (unmatchedOrders.length > 0 || unmatchedQuotes.length > 0) {
+    const unmatchedOrders = this.zetaClient.orders
+      .get(asset)
+      .filter((o) => !matches(o, existingQuotes));
+    const unmatchedQuotes = this.zetaClient.orders
+      .get(asset)
+      .every((o) => !matches(o, existingQuotes));
+    if (unmatchedOrders.length > 0 || unmatchedQuotes == true) {
       const quoteRefreshes = this.state.calcQuoteRefreshes(asset);
       const quotes =
-        quoteRefreshes.length > 0 ? quoteRefreshes : existingQuotes;
+        quoteRefreshes != undefined ? quoteRefreshes : existingQuotes;
       console.log(`Refreshing quotes for ${asset} due to unmatched orders & quotes
-quotes: ${stringifyArr(quotes)}
+quotes: ${JSON.stringify(quotes)}
 unmatched orders: ${stringifyArr(unmatchedOrders)}
-unmatched quotes: ${stringifyArr(unmatchedQuotes)}`);
+unmatched quotes: ${unmatchedQuotes}`);
       await this.sendZetaQuotes(quotes);
-    } else
-      console.log(
-        `No quotes (existing ${existingQuotes.length}) to refresh for ${asset}`
-      );
+    } else console.log(`No quotes to refresh for ${asset}`);
   }
 
-  private async sendZetaQuotes(quotes: Quote[]) {
-    await Promise.all(
-      quotes.map(async (quote) => {
-        let txs = [];
-        const ixs = [
-          this.zetaClient.createCancelAllMarketOrdersInstruction(
-            quote.asset,
-            quote.marketIndex
-          ),
-        ];
+  private async sendZetaQuotes(quote: Quote) {
+    let txs = [];
+    const ixs = [
+      this.zetaClient.createCancelAllMarketOrdersInstruction(quote.asset),
+    ];
 
-        if (quote.bidSize != 0)
-          ixs.push(
-            this.zetaClient.createPlaceOrderInstruction(
-              quote.asset,
-              quote.marketIndex,
-              convertPriceToOrderPrice(quote.bidPrice, true),
-              convertDecimalToNativeLotSize(quote.bidSize),
-              types.Side.BID
-            )
-          );
+    if (quote.bidSize != 0)
+      ixs.push(
+        this.zetaClient.createPlacePerpOrderInstruction(
+          quote.asset,
+          convertPriceToOrderPrice(quote.bidPrice, true),
+          convertDecimalToNativeLotSize(quote.bidSize),
+          types.Side.BID
+        )
+      );
 
-        if (quote.askSize != 0)
-          ixs.push(
-            this.zetaClient.createPlaceOrderInstruction(
-              quote.asset,
-              quote.marketIndex,
-              convertPriceToOrderPrice(quote.askPrice, false),
-              convertDecimalToNativeLotSize(quote.askSize),
-              types.Side.ASK
-            )
-          );
+    if (quote.askSize != 0)
+      ixs.push(
+        this.zetaClient.createPlacePerpOrderInstruction(
+          quote.asset,
+          convertPriceToOrderPrice(quote.askPrice, false),
+          convertDecimalToNativeLotSize(quote.askSize),
+          types.Side.ASK
+        )
+      );
 
-        const tx = new Transaction().add(...ixs);
-        txs.push(tx);
+    const tx = new Transaction().add(...ixs);
+    txs.push(tx);
 
-        try {
-          // execute first level txs (with cancel)
-          await Promise.all(
-            txs.map(
-              async (tx) =>
-                await utils.processTransaction(this.zetaClient.provider, tx)
-            )
-          );
-        } catch (e) {
-          // cancel old quotes in case of an error
-          console.log("Failed to send txns, cancelling quotes", e);
-          try {
-            const cancelTx = new Transaction();
-            const marketIndices = quotes.map((x) => x.marketIndex);
-            for (var index of marketIndices) {
-              cancelTx.add(
-                this.zetaClient.createCancelAllMarketOrdersInstruction(
-                  quote.asset,
-                  index
-                )
-              );
-            }
-            await utils.processTransaction(this.zetaClient.provider, cancelTx);
-          } catch (e) {
-            console.log("Failed to cancel orders", e);
-          }
-        }
-      })
-    );
+    try {
+      // execute first level txs (with cancel)
+      await Promise.all(
+        txs.map(
+          async (tx) =>
+            await utils.processTransaction(this.zetaClient.provider, tx)
+        )
+      );
+    } catch (e) {
+      // cancel old quotes in case of an error
+      console.log("Failed to send txns, cancelling quotes", e);
+      try {
+        const cancelTx = new Transaction().add(
+          this.zetaClient.createCancelAllMarketOrdersInstruction(quote.asset)
+        );
+        await utils.processTransaction(this.zetaClient.provider, cancelTx);
+      } catch (e) {
+        console.log("Failed to cancel orders", e);
+      }
+    }
   }
 }
