@@ -1,8 +1,7 @@
 import { TopLevelMsg } from "./types";
 import { utils } from "@zetamarkets/sdk";
+import * as constants from "./constants";
 import { Spread } from "./types";
-
-const BPS_FACTOR = 10000;
 
 // Weighted midpoint
 export function calculateFair(msg: TopLevelMsg): number {
@@ -24,20 +23,51 @@ export function roundLotSize(size: number, lotSize: number) {
   return Number((Math.floor(size / lotSize) * lotSize).toFixed(3));
 }
 
-export function calculateSpread(price: number, spreadBps: number): Spread {
-  let diff = (price * spreadBps) / BPS_FACTOR;
+export function calculateSpread(
+  price: number,
+  spreadBps: number,
+  totalDeltas: number,
+  maxCashDelta: number,
+  leanBps: number
+): Spread {
+  let notionalDelta = totalDeltas * price;
+  let newLean =
+    notionalDelta > 0
+      ? Math.max(
+          (-notionalDelta / maxCashDelta) * (spreadBps + leanBps),
+          -(spreadBps + leanBps)
+        )
+      : Math.min(
+          (-notionalDelta / maxCashDelta) * (spreadBps + leanBps),
+          spreadBps + leanBps
+        );
+
+  let newBidEdge = (price * (-spreadBps + newLean)) / constants.BPS_FACTOR;
+  let newAskEdge = (price * (spreadBps + newLean)) / constants.BPS_FACTOR;
+  let newBid = price + newBidEdge;
+  let newAsk = price + newAskEdge;
+
   return {
-    bid: price - diff,
-    ask: price + diff,
+    bid: newBid,
+    ask: newAsk,
+  };
+}
+
+export function calculateSpreadNoLean(
+  price: number,
+  spreadBps: number
+): Spread {
+  let bidEdge = (price * -spreadBps) / constants.BPS_FACTOR;
+  let askEdge = (price * spreadBps) / constants.BPS_FACTOR;
+  let bid = price + bidEdge;
+  let ask = price + askEdge;
+  return {
+    bid: bid,
+    ask: ask,
   };
 }
 
 export function convertPriceToOrderPrice(price: number, bid: boolean): number {
   let orderPrice = utils.convertDecimalToNativeInteger(price);
   return roundTickSize(orderPrice, bid);
-}
-
-export function diffInBps(x, y: number): number {
-  let diff = Math.abs(x - y);
-  return (diff / y) * BPS_FACTOR;
 }

@@ -1,31 +1,39 @@
 {
-  "network": "devnet",
-  "endpoint": "https://api.devnet.solana.com",
-  "programId": "BG3oRikW8d16YjUEmX3ZxHm9SiJzrGtMhsSR8aCw1Cd7",
-  "markExchange": "bybit",
+  "network": "mainnet",
+  "endpoint": "https://api.mainnet-beta.solana.com",
+  "programId": "ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD",
+  "hedgeExchange": "bybit",
 
-  "requoteIntervalMs": 30000,
-  "markPriceStaleIntervalMs": 30000,
+  "quoteIntervalMs": 30000,
+  "markPriceStaleIntervalMs": 5000,
+  "positionRefreshIntervalMs": 10000,
+  "riskStatsFetchIntervalMs": 30000,
+  "lockingIntervalMs": 3000,
+  "tifExpiryOffsetMs": 30000,
+
+  "cashDeltaHedgeThreshold": 15,
+  "webServerPort": 85,
 
   "assets": {
     "SOL": {
-      "quoteLotSize": 1,
-      "widthBps": 10,
-      "requoteBps": 5,
-      "quoteCashDelta": 10000 
-    },
-    "BTC": {
-      "quoteLotSize": 0.001,
-      "widthBps": 10,
-      "requoteBps": 5,
-      "quoteCashDelta": 10000 
-    },
-    "ETH": {
-      "asset": "ETH",
+      "maxZetaCashExposure": 10,
+      "maxNetCashDelta": 1000,
       "quoteLotSize": 0.01,
-      "widthBps": 10,
-      "requoteBps": 5,
-      "quoteCashDelta": 10000 
+      "widthBps": 12,
+      "requoteBps": 1,
+      "instruments": [
+        {
+          "marketIndex": 137,
+          "levels": [
+            { "priceIncr": 0.0, "quoteCashDelta": 5 },
+            { "priceIncr": 0.0005, "quoteCashDelta": 5 },
+            { "priceIncr": 0.001, "quoteCashDelta": 5 },
+            { "priceIncr": 0.0015, "quoteCashDelta": 5 },
+            { "priceIncr": 0.004, "quoteCashDelta": 5 }
+          ]
+        }
+      ],
+      "leanBps": 5
     }
   }
 }

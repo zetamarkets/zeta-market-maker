@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="{{refresh}}">
+    <title>Zeta vs Hedge Positions</title>
+    <style>
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        .cash { color: blue; }
+        .amount { color: black; }
+        .cashDeltaWarning { color: red; }
+        .cashDeltaOk { color: green; }
+        .breach { font-weight: bold; color: red; }
+    </style>
+</head>
+<body>
+    <h2>Zeta</h2>
+    <table>
+        <tr><th></th>{{#each assets}}<th>{{this}}</th>{{/each}}<th>Total</th></tr>
+        {{#each zetaInstruments}}
+        <tr><td><strong>{{instrumentName}}</strong></td>{{#each prices}}<td><div class="amount">{{baseAmount base}}</div>/<div class="cash">{{currency cash}}</div></td>{{/each}}<td><div class="cash">{{currency totalCash}}</div></td></td></tr>
+        {{/each}}
+        <tr><td><strong>Total</strong></td>{{#each zetaTotals}}<td><div class="amount">{{baseAmount base}}</div>/<div class="cash">{{currency cash}}</div></div></td>{{/each}}<td><div class="cash">{{currency zetaTotalCash}}</div></td></tr>
+    </table>
+
+    <h2>Hedge</h2>
+    <table>
+        <tr><th></th>{{#each assets}}<th>{{this}}</th>{{/each}}<th>Total</th></tr>
+        <tr><td><strong>Total</strong></td>{{#each hedgeTotals}}<td><div class="amount">{{baseAmount base}}</div>/<div class="cash">{{currency cash}}</div></div></td>{{/each}}<td><div class="cash">{{currency hedgeTotalCash}}</div></td></tr>
+    </table>
+
+    <h2>Net cash delta: Zeta cash + Hedge cash</h2>
+    <table>
+        <tr><th></th>{{#each assets}}<th><strong>{{this}}</strong></th>{{/each}}<th><strong>Total</strong></th></tr>
+        <tr><td><strong>Total</strong></td>{{#each netCashDeltas}}<td><div class="{{currencyDeltaStyle this}}">{{currency this}}</div></td>{{/each}}<td><div class="{{currencyDeltaStyle totalNetCashDelta}}">{{currency totalNetCashDelta}}</div></td></tr>
+    </table>
+
+    <h2>Risk</h2>
+    <table>
+        <tr><strong><th>Venue</th><th>Asset</th><th>Balance</th><th>Margin</th><th>Avail Balance</th><th>PnL</th></strong></tr>
+        {{#each riskStats}}<tr><td>{{venue}}</td><td>{{asset}}</td><td>{{currency balance}}</td><td>{{currency margin}}</td><td>{{currency availableBalance}}</td><td>{{currency pnl}}</td></tr>{{/each}}
+    </table>
+
+    <h2>Prices</h2>
+    <table>
+        <tr><th></th>{{#each assets}}<th><strong>{{this}}</strong></th>{{/each}}</tr>
+        <tr><td><strong>Mark</strong></td>{{#each theos}}<td><div class="cash">{{currency theo}}</div></td>{{/each}}</tr>
+        <tr><td><strong>Updated</strong></td>{{#each theosTs}}<td><div class="cash">{{this}}</div></td>{{/each}}</tr>
+    </table>
+
+    <h2>Quote breaches</h2>
+    <table>
+        {{#each quoteBreaches}}<tr><td><div class="breach">{{this}}</div></td></tr>{{/each}}
+    </table>
+
+    <h2>Zeta balance over time</h2>
+    <html>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    <body>
+    <canvas id="chart0" style="width:100%;max-width:1000px"></canvas>
+    <script>
+
+    var xValues = "{{{ zetaBalanceToGraphX }}}";
+    var yValues = "{{{ zetaBalanceToGraphY }}}";
+    var parsedXValues = JSON.parse(xValues);
+    var parsedYValues = JSON.parse(yValues);
+
+    var xyValues = [];
+    for (let i = 0; i < parsedXValues.length; i++) {
+        xyValues.push({x: parsedXValues[i], y: parsedYValues[i]});
+    }
+
+    new Chart("chart0", {
+    type: "scatter",
+    data: {
+        datasets: [{
+        pointRadius: 4,
+        pointBackgroundColor: "rgb(0,0,255)",
+        data: xyValues,
+        showLine: true,
+        }]
+    },
+    options: {
+        legend: {
+            display: false
+        },
+        scales: {
+            xAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: 'unix ts'
+                }
+            }],
+            yAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: 'mm zeta balance'
+                }
+            }],
+        }
+    }
+    });
+    </script>
+
+    </body>
+    </html>
+
+    <h2>Hedge balance over time</h2>
+    <html>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    <body>
+    <canvas id="chart1" style="width:100%;max-width:1000px"></canvas>
+    <script>
+
+    var xValues = "{{{ hedgeBalanceToGraphX }}}";
+    var yValues = "{{{ hedgeBalanceToGraphY }}}";
+    var parsedXValues = JSON.parse(xValues);
+    var parsedYValues = JSON.parse(yValues);
+
+    var xyValues = [];
+    for (let i = 0; i < parsedXValues.length; i++) {
+        xyValues.push({x: parsedXValues[i], y: parsedYValues[i]});
+    }
+
+    new Chart("chart1", {
+    type: "scatter",
+    data: {
+        datasets: [{
+        pointRadius: 4,
+        pointBackgroundColor: "rgb(0,0,255)",
+        data: xyValues,
+        showLine: true,
+        }]
+    },
+    options: {
+        legend: {
+            display: false
+        },
+        scales: {
+            xAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: 'unix ts'
+                }
+            }],
+            yAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: 'mm hedge balance'
+                }
+            }],
+        }
+    }
+    });
+    </script>
+
+    </body>
+    </html>
+
+    <h2>Total balance over time</h2>
+    <html>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    <body>
+    <canvas id="chart2" style="width:100%;max-width:1000px"></canvas>
+    <script>
+
+    var xValues = "{{{ balanceToGraphX }}}";
+    var yValues = "{{{ balanceToGraphY }}}";
+    var parsedXValues = JSON.parse(xValues);
+    var parsedYValues = JSON.parse(yValues);
+
+    var xyValues = [];
+    for (let i = 0; i < parsedXValues.length; i++) {
+        xyValues.push({x: parsedXValues[i], y: parsedYValues[i]});
+    }
+
+    new Chart("chart2", {
+    type: "scatter",
+    data: {
+        datasets: [{
+        pointRadius: 4,
+        pointBackgroundColor: "rgb(0,0,255)",
+        data: xyValues,
+        showLine: true,
+        }]
+    },
+    options: {
+        legend: {
+            display: false
+        },
+        scales: {
+            xAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: 'unix ts'
+                }
+            }],
+            yAxes: [{
+                scaleLabel: {
+                    display: true,
+                    labelString: 'mm total balance'
+                }
+            }],
+        }
+    }
+    });
+    </script>
+
+    </body>
+    </html>
+
+    <br></br>
+    *Network: {{network}}
+    <br></br>
+    *Restart: {{restartCnt}}
+    <br></br>
+    *Legend: numbers either in (base/cash) or cash
+    <br></br>
+    *Timestamped @ {{now}}, refreshed every {{refresh}}s
+</body>
+</html>
